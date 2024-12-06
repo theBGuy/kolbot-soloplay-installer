@@ -4,8 +4,9 @@
 Made this because a lot of people have gotten this wrong so this is to make it easy to get set up quickly.
 
 ## How to use
+- Install Git Bash and Git <https://git-scm.com/downloads/win>
 - Download this repo
-- Open up the repo in powershell and run `.\installer.sh`
+- Open up the repo in Git Bash and run `.\installer.sh`
 
 ## Alternative w/o cloning this repo directly
 ### WebRequest
