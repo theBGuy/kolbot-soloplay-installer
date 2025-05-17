@@ -61,7 +61,7 @@ SOLOPLAY_DIR="kolbot-SoloPlay"
 
 # Clone the repositories
 echo "Cloning kolbot repository..."
-git clone $KOLBOT_REPO $KOLBOT_DIR
+git clone --recurse-submodules $KOLBOT_REPO $KOLBOT_DIR
 
 echo "Cloning kolbot-SoloPlay repository..."
 git clone $SOLOPLAY_REPO $SOLOPLAY_DIR

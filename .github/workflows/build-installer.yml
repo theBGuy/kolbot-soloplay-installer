@@ -1,0 +1,59 @@
+name: Build Kolbot Installer
+
+on:
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+  push:
+    branches:
+      - master
+    paths:
+      - 'kolbot-installer.nsi'  # Only trigger on changes to our specific installer file
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write  # Needed for creating releases
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+      
+      - name: Get current date
+        id: date
+        run: echo "date=$(Get-Date -Format 'yyyyMMdd')" >> $env:GITHUB_OUTPUT
+      
+      - name: Get short SHA
+        id: sha
+        run: echo "sha=$($env:GITHUB_SHA.Substring(0,7))" >> $env:GITHUB_OUTPUT
+      
+      - name: Install NSIS
+        run: |
+          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09-setup.exe" -OutFile "nsis-setup.exe"
+          Start-Process -FilePath "nsis-setup.exe" -ArgumentList "/S" -Wait
+      
+      - name: Build Installer
+        run: |
+          $env:PATH += ";C:\Program Files (x86)\NSIS"
+          makensis kolbot-installer.nsi
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.date.outputs.date }}.${{ steps.sha.outputs.sha }}
+          release_name: Kolbot Installer ${{ steps.date.outputs.date }}
+          draft: false
+          prerelease: false
+      
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./KolbotSoloplayInstaller.exe
+          asset_name: KolbotSoloplayInstaller.exe
+          asset_content_type: application/octet-stream
