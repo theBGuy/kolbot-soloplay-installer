@@ -27,15 +27,22 @@ jobs:
         id: sha
         run: echo "sha=$($env:GITHUB_SHA.Substring(0,7))" >> $env:GITHUB_OUTPUT
       
-      - name: Install NSIS
-        run: |
-          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09-setup.exe" -OutFile "nsis-setup.exe"
-          Start-Process -FilePath "nsis-setup.exe" -ArgumentList "/S" -Wait
-      
-      - name: Build Installer
-        run: |
-          $env:PATH += ";C:\Program Files (x86)\NSIS"
-          makensis kolbot-installer.nsi
+      - name: Download EnVar plugin for NSIS
+        uses: carlosperate/download-file-action@v1.0.3
+        with:
+          file-url: https://nsis.sourceforge.io/mediawiki/images/7/7f/EnVar_plugin.zip
+          file-name: envar_plugin.zip
+          location: ${{ github.workspace }}
+
+      - name: Extract EnVar plugin
+        run: 7z x -o"${{ github.workspace }}/NSIS_Plugins" "${{ github.workspace }}/envar_plugin.zip"
+
+      - name: Build NSIS installer
+        uses: joncloud/makensis-action@v4
+        with:
+          script-file: "kolbot-installer.nsi"
+          arguments: "/V3"
+          additional-plugin-paths: ${{ github.workspace }}/NSIS_Plugins/Plugins
       
       - name: Create Release
         id: create_release
