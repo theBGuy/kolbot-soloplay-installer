@@ -82,7 +82,7 @@ Function UpdateChoicePageLeave
   ${If} $0 == ${BST_CHECKED}
     DetailPrint "Creating backup of existing installation..."
     ${GetTime} "" "L" $1 $2 $3 $4 $5 $6 $7
-    StrCpy $BackupName "$INSTDIR\backups\kolbot_backup_$3$2$1_$4$5.zip"
+    StrCpy $BackupName "$INSTDIR\backups\kolbot_backup_$3$2$1_$4$5"
     DetailPrint "Creating backup at: $BackupName"
     
     ; Use our CreateBackup function
@@ -314,6 +314,7 @@ FunctionEnd
 Section "Uninstall"
   ; Remove application files
   RMDir /r "$INSTDIR\kolbot"
+  RMDir /r "$INSTDIR\kolbot-SoloPlay"
   Delete "$INSTDIR\latest_commit_hashes.txt"
   Delete "$INSTDIR\uninstall.exe"
   
@@ -324,44 +325,38 @@ Section "Uninstall"
   RMDir "$INSTDIR"
 SectionEnd
 
-; Function to create backup
+; Function: CreateBackup
+; Expects on stack: $0 = full path to destination folder
 Function CreateBackup
-  Pop $0 ; Get backup folder name from stack
-  DetailPrint "Creating backup: $0"
-  
-  ; Create backups directory if it doesn't exist
+  Pop $0
+  ; Ensure backups folder exists
   CreateDirectory "$INSTDIR\backups"
-    ; Extract the folder name from the full path (remove .zip extension since we're not zipping anymore)
-  ${GetFileName} "$0" $1
-  StrCpy $1 "$INSTDIR\backups\$1"
-  # Remove .zip extension if present
-  ${If} $1 != ""
-    StrCpy $2 "$1" "" -4
-    ${If} $2 == ".zip"
-      StrCpy $1 "$1" -4
-    ${EndIf}
-  ${EndIf}
-  
-  DetailPrint "Moving kolbot directory to backup location: $1"
-  
-  ; Try to rename (move) the directory first as it's faster
-  Rename "$INSTDIR\kolbot" "$1"
+
+  DetailPrint "Backing up kolbot to: $0"
+
+  ; Try a fast Rename (move)
+  Rename "$INSTDIR\kolbot" "$0"
   ${If} ${Errors}
     ClearErrors
-    ; If rename fails (perhaps across drives), try copying
-    DetailPrint "Move failed, trying to copy files..."
-    CreateDirectory "$1"
-    CopyFiles /SILENT "$INSTDIR\kolbot\*.*" "$1\*.*"
+    DetailPrint "Rename failed (cross-drive?), falling back to copy+delete"
+
+    ; Copy all files & subfolders
+    CreateDirectory "$0"
+    CopyFiles /SILENT "$INSTDIR\kolbot\*.*" "$0\*.*"
     ${If} ${Errors}
-      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "Warning: Failed to backup files.$\nClick OK to continue without backup, or Cancel to abort installation." IDOK continue IDCANCEL abort
-      abort:
-        Abort
-      continue:
-        DetailPrint "User chose to continue without backup"
-        Return
+      MessageBox MB_OK|MB_ICONEXCLAMATION "Backup failed: could not copy files." 
+      Abort
     ${EndIf}
+
+    ; Remove original folder tree
+    RMDir /r "$INSTDIR\kolbot"
+    ${If} ${Errors}
+      MessageBox MB_OK|MB_ICONEXCLAMATION "Backup copy succeeded, but failed to delete original folder." 
+      ; Not fatal; we leave the copy in place
+    ${EndIf}
+
+    DetailPrint "Backup fallback complete: $0"
+  ${Else}
+    DetailPrint "Backup moved successfully: $0"
   ${EndIf}
-  
-  DetailPrint "Backup completed successfully at: $1"
-  Return
 FunctionEnd
