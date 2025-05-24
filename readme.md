@@ -5,6 +5,8 @@ Made this because a lot of people have gotten this wrong so this is to make it e
 
 ## How to use
 ### Recommended: Windows Installer (No Git Bash or manual setup required)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/theBGuy/kolbot-soloplay-installer/total?label=Total%20Downloads)
+
 - Download and run `KolbotSoloplayInstaller.exe` from the [Releases](https://github.com/theBGuy/kolbot-soloplay-installer/releases) page or from this repo.
 - The installer will:
   - Check for and install the Visual C++ Redistributable (x86) if needed
