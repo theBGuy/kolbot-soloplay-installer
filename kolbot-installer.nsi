@@ -96,11 +96,10 @@ Function UpdateChoicePageLeave
     CopyFiles /SILENT "$INSTDIR\kolbot\d2bs\kolbot\data\*.*" "$TEMP\kolbot_userdata\kolbot_data\"
     CopyFiles /SILENT "$INSTDIR\kolbot\d2bs\kolbot\mules\*.*" "$TEMP\kolbot_userdata\mules\"
     CopyFiles /SILENT "$INSTDIR\kolbot\d2bs\kolbot\pickit\*.*" "$TEMP\kolbot_userdata\pickit\"
-    CopyFiles /SILENT "$INSTDIR\kolbot\d2bs\kolbot\libs\SoloPlay\Data\*.*" "$TEMP\kolbot_userdata\soloplay_data\"
+    CopyFiles /SILENT "$INSTDIR\kolbot\d2bs\kolbot\libs\SoloPlay\.soloplay\*.*" "$TEMP\kolbot_userdata\soloplay_data\"
     
     ; Delete existing installation
     RMDir /r "$INSTDIR\kolbot"
-    RMDir /r "$INSTDIR\kolbot-SoloPlay"
     
     ; Set flag to restore data after fresh install
     StrCpy $RestoreData "1"
@@ -203,13 +202,24 @@ Section "Install"
       EnVar::AddValue "PATH" "$PROGRAMFILES\Git\cmd"
       Pop $0
     SkipGit:
-  ${EndIf}    ; Handle Kolbot repository
+  ${EndIf}
+  
+  ; Handle Kolbot repository
   ${If} ${FileExists} "$INSTDIR\kolbot\.git"
     DetailPrint "Updating existing Kolbot repository..."
     nsExec::ExecToLog '"cmd.exe" /C "cd $INSTDIR\kolbot && git pull --recurse-submodules"'
     Pop $0
     ${If} $0 != 0
       MessageBox MB_ICONSTOP "Failed to update Kolbot repository. Error: $0"
+      Abort
+    ${EndIf}
+
+    ; Update submodules to ensure they're current
+    DetailPrint "Updating submodules..."
+    nsExec::ExecToLog '"cmd.exe" /C "cd $INSTDIR\kolbot && git submodule update --init --recursive"'
+    Pop $0
+    ${If} $0 != 0
+      MessageBox MB_ICONSTOP "Failed to update submodules. Error: $0"
       Abort
     ${EndIf}
   ${Else}
@@ -221,36 +231,17 @@ Section "Install"
       Abort
     ${EndIf}
   ${EndIf}
-  
-  ${If} ${FileExists} "$INSTDIR\kolbot-SoloPlay\.git"
-    DetailPrint "Updating existing Kolbot-SoloPlay repository..."
-    nsExec::ExecToLog '"cmd.exe" /C "cd $INSTDIR\kolbot-SoloPlay && git pull"'
-    Pop $0
-    ${If} $0 != 0
-      MessageBox MB_YESNO "Failed to update Kolbot-SoloPlay repository. Would you like to do a fresh install?" IDYES DoFreshSoloPlay IDNO SkipSoloPlay
-      DoFreshSoloPlay:
-        RMDir /r "$INSTDIR\kolbot-SoloPlay"
-        DetailPrint "Cloning Kolbot-SoloPlay repository..."
-        nsExec::ExecToLog '"cmd.exe" /C "git clone https://github.com/blizzhackers/kolbot-SoloPlay.git kolbot-SoloPlay"'
-        Pop $0
-        ${If} $0 != 0
-          MessageBox MB_ICONSTOP "Failed to clone Kolbot-SoloPlay repository. Error: $0"
-          Abort
-        ${EndIf}
-        Goto SoloPlayDone
-      SkipSoloPlay:
-        Abort
-    ${EndIf}
-  ${Else}
-    DetailPrint "Cloning Kolbot-SoloPlay repository..."
-    nsExec::ExecToLog '"cmd.exe" /C "git clone https://github.com/blizzhackers/kolbot-SoloPlay.git kolbot-SoloPlay"'
-    Pop $0
-    ${If} $0 != 0
-      MessageBox MB_ICONSTOP "Failed to clone Kolbot-SoloPlay repository. Error: $0"
-      Abort
-    ${EndIf}
+
+  ; Run kolbot setup script
+  DetailPrint "Running Kolbot setup script..."
+  SetOutPath "$INSTDIR\kolbot" ; Set the working directory to where setup.bat is
+  nsExec::ExecToLog '"cmd.exe" /C setup.bat' ; Execute the script directly
+  Pop $0
+  SetOutPath "$INSTDIR" ; Restore the original working directory
+  ${If} $0 != 0
+    MessageBox MB_ICONSTOP "Kolbot setup script failed. Error: $0"
+    Abort
   ${EndIf}
-  SoloPlayDone:
   
   ; Get commit hashes
   DetailPrint "Getting commit hashes..."
@@ -259,28 +250,11 @@ Section "Install"
   Pop $1
   StrCpy $2 $1
   
-  nsExec::ExecToStack '"cmd.exe" /C "cd kolbot-SoloPlay && git rev-parse HEAD"'
-  Pop $0
-  Pop $1
-  StrCpy $3 $1
-  
   ; Write commit hashes to file
   DetailPrint "Writing commit hashes to file..."
   FileOpen $4 "$INSTDIR\latest_commit_hashes.txt" w
   FileWrite $4 "kolbot latest commit hash: $2$\r$\n"
-  FileWrite $4 "kolbot-SoloPlay latest commit hash: $3$\r$\n"
   FileClose $4
-    ; Copy files  DetailPrint "Copying SoloPlay files to Kolbot..."
-  CreateDirectory "$INSTDIR\kolbot\d2bs\kolbot"
-  ; Use xcopy with correct paths - we're already in the install directory
-  nsExec::ExecToLog 'cmd.exe /C "xcopy /E /Y /I kolbot-SoloPlay\* kolbot\d2bs\kolbot\"'
-  Pop $0
-  ${If} $0 != 0
-    MessageBox MB_ICONSTOP "Failed to copy SoloPlay files. Error: $0"
-    Abort
-  ${EndIf}
-  
-  ; Keep kolbot-SoloPlay for future updates  DetailPrint "Setup complete! Note: SoloPlay repository is preserved for future updates."
   
   ; Restore preserved data if this was a fresh install
   ${If} $RestoreData == "1"
@@ -289,7 +263,7 @@ Section "Install"
     CopyFiles /SILENT "$TEMP\kolbot_userdata\kolbot_data\*.*" "$INSTDIR\kolbot\d2bs\kolbot\data\"
     CopyFiles /SILENT "$TEMP\kolbot_userdata\mules\*.*" "$INSTDIR\kolbot\d2bs\kolbot\mules\"
     CopyFiles /SILENT "$TEMP\kolbot_userdata\pickit\*.*" "$INSTDIR\kolbot\d2bs\kolbot\pickit\"
-    CopyFiles /SILENT "$TEMP\kolbot_userdata\soloplay_data\*.*" "$INSTDIR\kolbot\d2bs\kolbot\libs\SoloPlay\Data\"
+    CopyFiles /SILENT "$TEMP\kolbot_userdata\soloplay_data\*.*" "$INSTDIR\kolbot\d2bs\kolbot\libs\SoloPlay\.soloplay\"
     
     ; Clean up
     RMDir /r "$TEMP\kolbot_userdata"
@@ -314,7 +288,6 @@ FunctionEnd
 Section "Uninstall"
   ; Remove application files
   RMDir /r "$INSTDIR\kolbot"
-  RMDir /r "$INSTDIR\kolbot-SoloPlay"
   Delete "$INSTDIR\latest_commit_hashes.txt"
   Delete "$INSTDIR\uninstall.exe"
   
@@ -328,21 +301,21 @@ SectionEnd
 ; Function: CreateBackup
 ; Expects on stack: $0 = full path to destination folder
 Function CreateBackup
-  Pop $0
+  Pop $R0
   ; Ensure backups folder exists
   CreateDirectory "$INSTDIR\backups"
 
-  DetailPrint "Backing up kolbot to: $0"
+  DetailPrint "Backing up kolbot to: $R0"
 
   ; Try a fast Rename (move)
-  Rename "$INSTDIR\kolbot" "$0"
+  Rename "$INSTDIR\kolbot" "$R0"
   ${If} ${Errors}
     ClearErrors
     DetailPrint "Rename failed (cross-drive?), falling back to copy+delete"
 
     ; Copy all files & subfolders
-    CreateDirectory "$0"
-    CopyFiles /SILENT "$INSTDIR\kolbot\*.*" "$0\*.*"
+    CreateDirectory "$R0"
+    CopyFiles /SILENT "$INSTDIR\kolbot\*.*" "$R0\*.*"
     ${If} ${Errors}
       MessageBox MB_OK|MB_ICONEXCLAMATION "Backup failed: could not copy files." 
       Abort
@@ -355,8 +328,8 @@ Function CreateBackup
       ; Not fatal; we leave the copy in place
     ${EndIf}
 
-    DetailPrint "Backup fallback complete: $0"
+    DetailPrint "Backup fallback complete: $R0"
   ${Else}
-    DetailPrint "Backup moved successfully: $0"
+    DetailPrint "Backup moved successfully: $R0"
   ${EndIf}
 FunctionEnd

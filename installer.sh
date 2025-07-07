@@ -53,34 +53,32 @@ fi
 
 # the repository URLs
 KOLBOT_REPO="https://github.com/blizzhackers/kolbot.git"
-SOLOPLAY_REPO="https://github.com/blizzhackers/kolbot-SoloPlay.git"
 
 # the directories to clone into
 KOLBOT_DIR="kolbot"
-SOLOPLAY_DIR="kolbot-SoloPlay"
 
 # Clone the repositories
 echo "Cloning kolbot repository..."
 git clone --recurse-submodules $KOLBOT_REPO $KOLBOT_DIR
 
-echo "Cloning kolbot-SoloPlay repository..."
-git clone $SOLOPLAY_REPO $SOLOPLAY_DIR
+# Run kolbot setup script
+echo "Running kolbot setup script..."
+if [ -f "$KOLBOT_DIR/setup.bat" ]; then
+    (cd "$KOLBOT_DIR" && ./setup.bat)
+    if [ $? -ne 0 ]; then
+        echo "Kolbot setup script failed."
+        read -p "Press enter to exit..."
+        exit 1
+    fi
+else
+    echo "Warning: setup.bat not found. Skipping execution."
+fi
 
 # Get the latest commit hashes
 KOLBOT_COMMIT_HASH=$(git -C $KOLBOT_DIR rev-parse HEAD)
-SOLOPLAY_COMMIT_HASH=$(git -C $SOLOPLAY_DIR rev-parse HEAD)
 
 # Write the commit hashes to a file
 echo "kolbot latest commit hash: $KOLBOT_COMMIT_HASH" > latest_commit_hashes.txt
-echo "kolbot-SoloPlay latest commit hash: $SOLOPLAY_COMMIT_HASH" >> latest_commit_hashes.txt
-
-# Copy the contents of kolbot-SoloPlay into kolbot
-echo "Copying contents of kolbot-SoloPlay into kolbot..."
-cp -r $SOLOPLAY_DIR/* $KOLBOT_DIR/d2bs/kolbot/
-
-# Clean up
-echo "Cleaning up..."
-rm -rf $SOLOPLAY_DIR
 
 echo "Done!"
 
